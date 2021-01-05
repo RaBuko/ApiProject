@@ -1,0 +1,7 @@
+ApiProject/obj/
+.vs/
+ApiProject/bin/
+ApiProject/Migrations/
+ApiTest/bin/Debug/
+ApiTest/obj/Debug/
+ApiTest/obj/
