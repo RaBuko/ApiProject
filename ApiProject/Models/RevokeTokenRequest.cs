@@ -1,12 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-
-namespace ApiProject.Models
+﻿namespace ApiProject.Models
 {
     public class RevokeTokenRequest
     {
-        public string Token { get; internal set; }
+        public string Token { get; set; }
     }
 }

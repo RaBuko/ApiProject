@@ -8,6 +8,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -24,7 +25,8 @@ namespace ApiTest
             _factory = factory;
             _client = factory.CreateClient(new WebApplicationFactoryClientOptions()
             {
-                AllowAutoRedirect = false
+                AllowAutoRedirect = false,               
+
             });
         }
 
@@ -44,18 +46,16 @@ namespace ApiTest
             // Arrange
             var content = JsonContent.Create(new AuthenticateRequest()
             {
-                Username = "whyme",
-                Password = "ŻŹÓŁĆĘĄ"
+                Username = DbUtilities.DbUsers[0].Username,
+                Password = DbUtilities.DbUsers[0].Password
             });
 
             // Act
             var responseRaw = await _client.PostAsync("/user/authenticate", content);
 
             // Assert
-            responseRaw.EnsureSuccessStatusCode();
-            string responseBody = await responseRaw.Content.ReadAsStringAsync();
-            var response = JsonConvert.DeserializeObject<Dictionary<string, string>>(responseBody);
-            Assert.Equal("User2", response["firstName"]);
+            var response = await ApplyJwtTokenFromRaw(responseRaw);
+            Assert.Equal(DbUtilities.DbUsers[0].FirstName, response.FirstName);
         }
 
         [Fact]
@@ -64,23 +64,90 @@ namespace ApiTest
             // Arrange
             var content = JsonContent.Create(new AuthenticateRequest()
             {
-                Username = "testuser",
-                Password = "xdxdxd12!"
+                Username = DbUtilities.DbUsers[^1].Username,
+                Password = DbUtilities.DbUsers[^1].Password
             });
             var responseRaw = await _client.PostAsync("/user/authenticate", content);
-            responseRaw.EnsureSuccessStatusCode();
-            string responseBody = await responseRaw.Content.ReadAsStringAsync();
-            var response = JsonConvert.DeserializeObject<Dictionary<string, string>>(responseBody);
-            var token = response["token"];
-            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            await ApplyJwtTokenFromRaw(responseRaw);
 
             // Act
             responseRaw = await _client.GetAsync("/user");
 
             // Assert
-            responseBody = await responseRaw.Content.ReadAsStringAsync();
+            var responseBody = await responseRaw.Content.ReadAsStringAsync();
             var responseUsers = JsonConvert.DeserializeObject<List<User>>(responseBody);
-            Assert.Equal(2, responseUsers.Count);
+            Assert.Equal(DbUtilities.DbUsers.Count, responseUsers.Count);
+        }
+
+        [Fact]
+        public async Task RefreshToken()
+        {
+            // Arrange
+            var content = JsonContent.Create(new AuthenticateRequest()
+            {
+                Username = DbUtilities.DbUsers[^1].Username,
+                Password = DbUtilities.DbUsers[^1].Password,
+            });
+            var responseRaw = await _client.PostAsync("/user/authenticate", content);
+            await ApplyJwtTokenFromRaw(responseRaw);
+
+            // Act
+            responseRaw = await _client.PostAsync("/user/refresh-token", null);
+
+            // Assert
+            await ApplyJwtTokenFromRaw(responseRaw);
+        }
+
+        [Fact]
+        public async Task RevokeToken()
+        {
+            // Arrange
+            int id = 1;
+            var content = JsonContent.Create(new AuthenticateRequest()
+            {
+                Username = DbUtilities.DbUsers[id - 1].Username,
+                Password = DbUtilities.DbUsers[id - 1].Password
+            });
+
+            var responseRaw = await _client.PostAsync("/user/authenticate", content);
+            await ApplyJwtTokenFromRaw(responseRaw);
+
+            responseRaw = await _client.GetAsync($"/user/{id}/refresh-tokens");
+            var responseTokens = JsonConvert.DeserializeObject<List<RefreshToken>>(await responseRaw.Content.ReadAsStringAsync());
+            Assert.Single(responseTokens);
+            Assert.True(responseTokens[0].IsActive);
+
+            responseRaw = await _client.PostAsync("/user/refresh-token", null);
+            await ApplyJwtTokenFromRaw(responseRaw);
+
+            responseRaw = await _client.GetAsync($"/user/{id}/refresh-tokens");
+            responseTokens = JsonConvert.DeserializeObject<List<RefreshToken>>(await responseRaw.Content.ReadAsStringAsync());
+            Assert.Equal(2, responseTokens.Count);
+            Assert.False(responseTokens[0].IsActive);
+            Assert.True(responseTokens[1].IsActive);
+
+            content = JsonContent.Create(new RevokeTokenRequest()
+            {
+                Token = responseTokens[^1].Token,
+            });            
+            responseRaw = await _client.PostAsync("/user/revoke-token", content);
+            responseRaw.EnsureSuccessStatusCode();
+
+            responseRaw = await _client.GetAsync($"/user/{id}/refresh-tokens");
+            responseTokens = JsonConvert.DeserializeObject<List<RefreshToken>>(await responseRaw.Content.ReadAsStringAsync());
+            Assert.Equal(2, responseTokens.Count);
+            Assert.False(responseTokens[0].IsActive);
+            Assert.False(responseTokens[1].IsActive);
+        }
+
+        private async Task<AuthenticateResponse> ApplyJwtTokenFromRaw(HttpResponseMessage responseRaw)
+        {
+            responseRaw.EnsureSuccessStatusCode();
+            string responseBody = await responseRaw.Content.ReadAsStringAsync();
+            var response = JsonConvert.DeserializeObject<Dictionary<string, string>>(responseBody);
+            var authResp = new AuthenticateResponse(int.Parse(response["id"]), response["firstName"], response["lastName"], response["username"], response["jwtToken"], string.Empty);
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authResp.JwtToken);
+            return authResp;
         }
     }
 }

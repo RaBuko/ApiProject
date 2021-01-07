@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
@@ -19,43 +20,104 @@ namespace ApiProject.Services
     {
         Task<IEnumerable<User>> GetAll();
         Task<User> GetById(int userId);
-        Task<AuthenticateResponse> Authenticate(AuthenticateRequest request);
+        Task<AuthenticateResponse> Authenticate(AuthenticateRequest request, string ipAddress);
         Task<AuthenticateResponse> RefreshToken(string refreshToken, string ipAddress);
         Task<bool> RevokeToken(string token, string v);
     }
 
     public class UserService : IUserService
     {
-        private readonly ApiContext ctx;
+        private readonly ApiContext _ctx;
         private readonly AppSettings _appSettings;
 
         public UserService(ApiContext apiContext, IOptions<AppSettings> appSettings)
         {
-            ctx = apiContext;
+            _ctx = apiContext;
             _appSettings = appSettings.Value;
         }
 
-        public async Task<AuthenticateResponse> Authenticate(AuthenticateRequest request)
+        public async Task<AuthenticateResponse> Authenticate(AuthenticateRequest request, string ipAddress)
         {
-            // use hash + salt to compare passwords
-            var user = await ctx.User.SingleOrDefaultAsync(x => x.Username == request.Username && x.Password == request.Password);
+            var user = await _ctx.User.SingleOrDefaultAsync(x => x.Username == request.Username && x.Password == request.Password);
 
             if (user == null) return null;
 
-            var token = GenerateJwtToken(user);
+            var jwtToken = GenerateJwtToken(user);
+            var refreshToken = GenerateRefreshToken(ipAddress);
 
-            return new AuthenticateResponse(user, token);
+            user.RefreshTokens.Add(refreshToken);
+            _ctx.Update(user);
+            _ctx.SaveChanges();
+
+            return new AuthenticateResponse(user, jwtToken, refreshToken.Token);
+        }
+
+        public async Task<AuthenticateResponse> RefreshToken(string refreshToken, string ipAddress)
+        {
+            var user = await _ctx.User.SingleOrDefaultAsync(user => user.RefreshTokens.Any(x => x.Token == refreshToken));
+
+            if (user == null) return null;
+
+            var token = user.RefreshTokens.Single(x => x.Token == refreshToken);
+
+            if (!token.IsActive) return null;
+
+            var newToken = GenerateRefreshToken(ipAddress);
+            token.Revoked = DateTime.UtcNow;
+            token.RevokedByIp = ipAddress;
+            token.ReplacedByToken = newToken.Token;
+            user.RefreshTokens.Add(newToken);
+            _ctx.Update(user);
+            _ctx.SaveChanges();
+
+            var jwtToken = GenerateJwtToken(user);
+
+            return new AuthenticateResponse(user, jwtToken, newToken.Token);
+        }
+
+        public async Task<bool> RevokeToken(string token, string ipAddress)
+        {
+            var user = await _ctx.User.SingleOrDefaultAsync(u => u.RefreshTokens.Any(x => x.Token == token));
+
+            if (user == null) return false;
+
+            var refreshToken = user.RefreshTokens.Single(x => x.Token == token);
+
+            if (!refreshToken.IsActive) return false;
+
+            refreshToken.Revoked = DateTime.UtcNow;
+            refreshToken.RevokedByIp = ipAddress;
+            _ctx.Update(user);
+            _ctx.SaveChanges();
+
+            return true;
+        }
+
+        private static RefreshToken GenerateRefreshToken(string ipAddress)
+        {
+            using var cryptoServiceProvider = RandomNumberGenerator.Create();
+            var bytes = new byte[64];
+            cryptoServiceProvider.GetBytes(bytes);
+            return new RefreshToken()
+            {
+                Token = Convert.ToBase64String(bytes),
+                Expires = DateTime.UtcNow.AddDays(7),
+                Created = DateTime.UtcNow,
+                CreatedByIp = ipAddress,
+            };
         }
 
         private string GenerateJwtToken(User user)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
-
             var key = Encoding.ASCII.GetBytes(_appSettings.Secret);
             var tokenDescriptor = new SecurityTokenDescriptor
             {
-                Subject = new ClaimsIdentity(new[] { new Claim("id", user.Id.ToString()) }),
-                Expires = DateTime.UtcNow.AddDays(7),
+                Subject = new ClaimsIdentity(new[] 
+                { 
+                    new Claim(ClaimTypes.Name, user.Id.ToString()) 
+                }),
+                Expires = DateTime.UtcNow.AddMinutes(15),
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
             };
             var token = tokenHandler.CreateToken(tokenDescriptor);
@@ -64,24 +126,12 @@ namespace ApiProject.Services
 
         public async Task<IEnumerable<User>> GetAll()
         {
-            var users = await ctx.User.ToListAsync();
-            return users;
+            return await _ctx.User.ToListAsync();
         }
 
         public async Task<User> GetById(int userId)
         {
-            var user = await ctx.User.SingleOrDefaultAsync(x => x.Id == userId);
-            return user;
-        }
-
-        public Task<AuthenticateResponse> RefreshToken(string refreshToken, string ipAddress)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<bool> RevokeToken(string token, string v)
-        {
-            throw new NotImplementedException();
+            return await _ctx.User.FindAsync(userId);
         }
     }
 }

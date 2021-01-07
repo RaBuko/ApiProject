@@ -1,14 +1,14 @@
-﻿using ApiProject.Helpers;
-using ApiProject.Models;
+﻿using ApiProject.Models;
 using ApiProject.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
-using System.Net;
 using System.Threading.Tasks;
 
 namespace ApiProject.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("[controller]")]
     public class UserController : ControllerBase
@@ -20,7 +20,6 @@ namespace ApiProject.Controllers
             _userService = userService;
         }
 
-        [Authorize]
         [HttpGet]
         public async Task<IActionResult> GetAllUsers()
         {
@@ -35,22 +34,26 @@ namespace ApiProject.Controllers
             return Ok(user);
         }
 
+        [AllowAnonymous]
         [HttpPost("authenticate")]
         public async Task<IActionResult> Authenticate(AuthenticateRequest request)
         {
-            var response = await _userService.Authenticate(request);
+            var response = await _userService.Authenticate(request, GetIPAddress());
 
             if (response == null)
             {
                 return BadRequest(new
                 {
-                    message = "Username or password is incorrect"
+                    Message = "Username or password is incorrect"
                 });
             }
 
+            SetTokenCookie(response.RefreshToken);
+
             return Ok(response);
         }
-        /*
+
+        [AllowAnonymous]
         [HttpPost("refresh-token")]
         public async Task<IActionResult> RefreshToken()
         {
@@ -59,14 +62,17 @@ namespace ApiProject.Controllers
 
             if (response == null)
             {
-                return Unauthorized(new { Message = "Invalid token" });
+                return Unauthorized(new 
+                { 
+                    Message = "Invalid token" 
+                });
             }
 
             SetTokenCookie(response.RefreshToken);
 
             return Ok(response);
-        }
-
+        }        
+        
         [HttpPost("revoke-token")]
         public async Task<IActionResult> RevokeToken([FromBody]RevokeTokenRequest request)
         {
@@ -74,27 +80,39 @@ namespace ApiProject.Controllers
 
             if (string.IsNullOrEmpty(token))
             {
-                return BadRequest(new { Message = "Token is required" });
+                return BadRequest(new 
+                { 
+                    Message = "Token is required" 
+                });
             }
 
             var response = await _userService.RevokeToken(token, GetIPAddress());
 
             if (!response)
             {
-                return NotFound(new { Message = "Token not found" });
+                return NotFound(new 
+                { 
+                    Message = "Token not found" 
+                });
             }
 
-            return Ok(new { Message = "Token received" });
+            return Ok(new 
+            { 
+                Message = "Token received" 
+            });
         }
 
         [HttpGet("{id}/refresh-tokens")]
-        public IActionResult GetRefreshTokens(int id)
+        public async Task<IActionResult> GetRefreshTokens(int id)
         {
-            var user = _userService.GetById(id);
-            if (user == null) return NotFound();
+            var user = await _userService.GetById(id);
+            if (user == null)
+            {
+                return NotFound();
+            }
 
-            return Ok(user);
-        }*/
+            return Ok(user.RefreshTokens);
+        }
 
         private void SetTokenCookie(string refreshToken)
         {
@@ -106,10 +124,9 @@ namespace ApiProject.Controllers
             Response.Cookies.Append("refreshToken", refreshToken, cookieOption);
         }
 
-
         private string GetIPAddress()
         {
-            if (Request.Headers.ContainsKey("X-Forwarder-For"))
+            if (Request.Headers.ContainsKey("X-Forwarded-For"))
                 return Request.Headers["X-Forwarded-For"];
             else
                 return HttpContext.Connection.RemoteIpAddress.MapToIPv4().ToString();

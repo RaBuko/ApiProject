@@ -1,4 +1,5 @@
 ﻿using ApiProject;
+using ApiTest._TestPrepare;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -33,6 +34,8 @@ namespace ApiTest
                 db.Database.EnsureCreated();
 
                 DbUtilities.InitDbForTests(db);
+
+                services.AddSingleton<IStartupFilter, CustomStartupFilter>();
             });
         }
     }
