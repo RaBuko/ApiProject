@@ -27,6 +27,9 @@ namespace ApiProject.Entities
         [JsonIgnore]
         public string Password { get; set; }
 
+        [Required]
+        public Role Role { get; set; }
+
         [JsonIgnore]
         public List<RefreshToken> RefreshTokens { get; set; }
     }

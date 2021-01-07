@@ -1,4 +1,4 @@
-﻿namespace ApiProject.Models
+﻿namespace ApiProject.Models.User
 {
     public class RevokeTokenRequest
     {

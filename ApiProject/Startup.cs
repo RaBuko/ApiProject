@@ -1,5 +1,6 @@
 using ApiProject.Helpers;
 using ApiProject.Services;
+using AutoMapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -26,6 +27,8 @@ namespace ApiProject
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddAutoMapper(assemblies: null);
+
             services.AddDbContext<ApiContext>(options => options.UseSqlServer(Configuration.GetConnectionString("ConnStr")));
             services.AddCors();
             services.AddControllers();

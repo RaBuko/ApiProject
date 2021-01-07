@@ -1,5 +1,7 @@
 ﻿using ApiProject.Models;
+using ApiProject.Models.User;
 using ApiProject.Services;
+using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -13,11 +15,13 @@ namespace ApiProject.Controllers
     [Route("[controller]")]
     public class UserController : ControllerBase
     {
+        private readonly IMapper _mapper;
         private readonly IUserService _userService;
 
-        public UserController(IUserService userService)
+        public UserController(IUserService userService, IMapper mapper)
         {
             _userService = userService;
+            _mapper = mapper;
         }
 
         [HttpGet]
@@ -31,6 +35,19 @@ namespace ApiProject.Controllers
         public async Task<IActionResult> GetById(int id)
         {
             var user = await _userService.GetById(id);
+            return Ok(user);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
+        {
+            var foundUser = _userService.GetByUsername(request.Username);
+            if (foundUser != null)
+            {
+                return BadRequest("Username already taken");
+            }
+
+            var user = await _userService.CreateUser(request);
             return Ok(user);
         }
 

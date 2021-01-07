@@ -1,5 +1,6 @@
 ﻿using ApiProject.Entities;
 using ApiProject.Models;
+using ApiProject.Models.User;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Newtonsoft.Json;

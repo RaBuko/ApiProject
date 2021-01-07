@@ -1,7 +1,7 @@
 ﻿using ApiProject.Entities;
 using System.Text.Json.Serialization;
 
-namespace ApiProject.Models
+namespace ApiProject.Models.User
 {
     public class AuthenticateResponse
     {
@@ -25,7 +25,7 @@ namespace ApiProject.Models
             RefreshToken = refreshToken;
         }
 
-        public AuthenticateResponse(User user, string jwtToken, string refreshToken)
+        public AuthenticateResponse(Entities.User user, string jwtToken, string refreshToken)
         {
             Id = user.Id;
             FirstName = user.FirstName;

@@ -1,6 +1,8 @@
 ﻿using ApiProject.Entities;
 using ApiProject.Helpers;
 using ApiProject.Models;
+using ApiProject.Models.User;
+using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -23,17 +25,21 @@ namespace ApiProject.Services
         Task<AuthenticateResponse> Authenticate(AuthenticateRequest request, string ipAddress);
         Task<AuthenticateResponse> RefreshToken(string refreshToken, string ipAddress);
         Task<bool> RevokeToken(string token, string v);
+        Task<User> GetByUsername(string username);
+        Task<User> CreateUser(CreateUserRequest request);
     }
 
     public class UserService : IUserService
     {
         private readonly ApiContext _ctx;
         private readonly AppSettings _appSettings;
+        private readonly IMapper _mapper;
 
-        public UserService(ApiContext apiContext, IOptions<AppSettings> appSettings)
+        public UserService(ApiContext apiContext, IOptions<AppSettings> appSettings, IMapper mapper)
         {
             _ctx = apiContext;
             _appSettings = appSettings.Value;
+            _mapper = mapper;
         }
 
         public async Task<AuthenticateResponse> Authenticate(AuthenticateRequest request, string ipAddress)
@@ -132,6 +138,21 @@ namespace ApiProject.Services
         public async Task<User> GetById(int userId)
         {
             return await _ctx.User.FindAsync(userId);
+        }
+
+        public async Task<User> GetByUsername(string username)
+        {
+            return await _ctx.User.SingleOrDefaultAsync(x => x.Username == username);
+        }
+
+        public async Task<User> CreateUser(CreateUserRequest request)
+        {
+            var user = _mapper.Map<User>(request);
+
+            await _ctx.User.AddAsync(user);
+            _ctx.SaveChanges();
+
+            return user;
         }
     }
 }
