@@ -2,7 +2,7 @@
 using System.Net;
 using System.Threading.Tasks;
 
-namespace ApiTest
+namespace ApiTest.Helpers
 {
     public class FakeRemoteIpAddressMiddleware
     {

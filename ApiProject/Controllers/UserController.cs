@@ -47,7 +47,7 @@ namespace ApiProject.Controllers
                 return BadRequest("Username already taken");
             }
 
-            var user = await _userService.CreateUser(request);
+            var user = await _userService.UpsertUser(request);
             return Ok(user);
         }
 

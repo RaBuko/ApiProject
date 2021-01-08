@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Hosting;
 using System;
 
-namespace ApiTest._TestPrepare
+namespace ApiTest.Helpers
 {
     public class CustomStartupFilter : IStartupFilter
     {

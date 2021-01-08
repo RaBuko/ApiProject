@@ -10,6 +10,9 @@ namespace ApiProject.Mapper
         {
             CreateMap<User, CreateUserRequest>();
             CreateMap<User, UpdateUserRequest>();
+
+            CreateMap<CreateUserRequest, User>();
+            CreateMap<UpdateUserRequest, User>();
         }
     }
 }

@@ -26,7 +26,7 @@ namespace ApiProject.Services
         Task<AuthenticateResponse> RefreshToken(string refreshToken, string ipAddress);
         Task<bool> RevokeToken(string token, string v);
         Task<User> GetByUsername(string username);
-        Task<User> CreateUser(CreateUserRequest request);
+        Task<User> UpsertUser(CreateUserRequest request);
     }
 
     public class UserService : IUserService
@@ -145,12 +145,21 @@ namespace ApiProject.Services
             return await _ctx.User.SingleOrDefaultAsync(x => x.Username == username);
         }
 
-        public async Task<User> CreateUser(CreateUserRequest request)
+        public async Task<User> UpsertUser(CreateUserRequest request)
         {
             var user = _mapper.Map<User>(request);
 
-            await _ctx.User.AddAsync(user);
-            _ctx.SaveChanges();
+            var dbUser = await _ctx.User.SingleOrDefaultAsync(x => x.Username == user.Username);
+            if (dbUser == null)
+            {
+                await _ctx.User.AddAsync(user);
+            }
+            else
+            {
+                _ctx.Update(user);
+            }
+
+            await _ctx.SaveChangesAsync();
 
             return user;
         }

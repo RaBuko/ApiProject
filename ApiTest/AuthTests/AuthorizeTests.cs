@@ -1,6 +1,7 @@
 ﻿using ApiProject.Entities;
 using ApiProject.Models;
 using ApiProject.Models.User;
+using ApiTest.Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Newtonsoft.Json;
@@ -13,7 +14,7 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace ApiTest
+namespace ApiTest.AuthTests
 {
     public class AuthorizeTests : IClassFixture<ApiFactory<ApiProject.Startup>>
     {
@@ -22,12 +23,10 @@ namespace ApiTest
 
         public AuthorizeTests(ApiFactory<ApiProject.Startup> factory)
         {
-            // Arrange
             _factory = factory;
             _client = factory.CreateClient(new WebApplicationFactoryClientOptions()
             {
-                AllowAutoRedirect = false,               
-
+                AllowAutoRedirect = false,
             });
         }
 

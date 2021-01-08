@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ApiTest
+namespace ApiTest.Helpers
 {
     public static class DbUtilities
     {
