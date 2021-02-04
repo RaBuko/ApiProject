@@ -77,7 +77,6 @@ namespace ApiProject
             }
 
             app.UseHttpsRedirection();
-
             app.UseRouting();
 
             app.UseCors(x => x

@@ -1,0 +1,18 @@
+.Main {
+  text-align: center;
+  color: white;
+  background-color: #282c34;
+}
+
+.header {
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+}
+
+#center {  
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}

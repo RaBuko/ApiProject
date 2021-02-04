@@ -68,5 +68,34 @@ namespace ApiTest.IntegrationTests
             Assert.Equal(user.FirstName, userDb.FirstName);
             Assert.Equal(user.FirstName, userResp.FirstName);
         }
+
+        [Fact]
+        public async Task UpdateUserTest()
+        {
+            var user = new User()
+            {
+                Username = "newuser2",
+                FirstName = "firstname2",
+                LastName = "lastname2",
+                Password = "Password1234!!@2",
+                Role = Role.Manager,
+            };
+
+            var userDb = await _userService.GetByUsername(user.Username);
+            Assert.Null(userDb);
+            var request = _mapper.Map<CreateUserRequest>(user);
+
+            // Act
+            var userResp = await _userService.UpsertUser(request);
+            user.FirstName = "aaaa";
+            request.Firstname = user.FirstName;
+            userResp = await _userService.UpsertUser(request);
+
+            // Assert
+            userDb = await _userService.GetByUsername(user.Username);
+            Assert.NotNull(userDb);
+            Assert.Equal(user.FirstName, userDb.FirstName);
+            Assert.Equal(user.FirstName, userResp.FirstName);
+        }
     }
 }
